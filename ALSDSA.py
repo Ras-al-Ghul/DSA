@@ -6,6 +6,8 @@ import queue as QU
 import sys as SY
 
 screen_lock = TH.Semaphore(value=1)
+global_val = 0
+global_calc_list = []
 
 class Node:
 	def __init__(self, label, domain, probability):
@@ -89,6 +91,17 @@ class Node:
 				i.context[i.round_num][self] = self.val
 			except Exception as e:
 				print "error", e
+	def calc_utility(self):
+		global global_calc_list
+		__util = 0
+		for i in xrange(len(global_calc_list)):
+			__cur_obj = global_calc_list[i][0]
+			__cur_neighbour_list = global_calc_list[i][1]
+			for j in __cur_neighbour_list:
+				tempval = __cur_obj.util_table[j][j.val][__cur_obj.domain.index(__cur_obj.val)]
+				__util += tempval
+				# print tempval
+		return __util
 	def DSA(self):
 		# print self.util_table
 		# print self.label, self.val
@@ -117,11 +130,16 @@ class Node:
 			if __new_util > __old_util:
 				if RA.random() < self.probability:
 					screen_lock.acquire()
-					print self.label, " value changed from ", self.val, " to ", __temp_val
-					screen_lock.release()
+					__old_val = self.val
 					self.val = __temp_val
+					print self.label, " value changed from ", __old_val, " to ", __temp_val
+					__temp_global = self.calc_utility()
+					global global_val
+					if __temp_global > global_val:
+						global_val = __temp_global
+						print "global utility changed ", global_val
+					screen_lock.release()
 					self.tell_neighbours()
-					# print "changed"
 
 def main():
 	# declare nodes with labels and domains
@@ -149,6 +167,10 @@ def main():
 	A.set_constraint_table([(B,[[3,4],[2,1]]), (C,[[1,2],[2,1]])])
 	B.set_constraint_table([(C,[[2,1],[3,3]]), (D,[[2,4],[1,2]])])
 
+	global global_calc_list
+	# same order as above
+	global_calc_list = [[A,[B,C]],[B,[C,D]],[C,[]],[D,[]]]
+
 	for i in nodes_list:
 		print i.label, i.val,
 	
@@ -156,8 +178,8 @@ def main():
 
 	# create processes
 	p_list = []
-	for i in nodes_list:
-		temp = TH.Thread(target=i.DSA,args=())
+	for i in xrange(len(nodes_list)):
+		temp = TH.Thread(target=nodes_list[i].DSA,args=())
 		temp.start()
 		p_list.append(temp)
 
