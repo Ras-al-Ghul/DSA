@@ -29,6 +29,16 @@ class Node:
 		self.context = CO.defaultdict(dict)
 		# changing probability
 		self.probability = probability
+		# voting rights - one for each value in domain
+		self.voting_rights = [0 for i in self.domain]
+		# columns are indexed by values in domain, rows are indexed by neighbours
+		self.without_context_table = []
+		# key is which neighbour, value is a 1D array which has preference values for each value in the domain of the neighbour
+		self.neighbour_message = {}
+		# with_context_weight
+		self.with_context_weight = 0.5
+		# without_context_weight
+		self.without_context_weight = 0.5
 	def add_neighbours(self, neighbours):
 		for i in neighbours:
 			# add neighbour to your list
@@ -76,9 +86,33 @@ class Node:
 			for j in xrange(len(self.domain)):
 				__util_table_given_context[j] += (__util_list[j]/float(sum(__util_list)))
 		
-		# look in __util_table_given_context
-		__next_index = __util_table_given_context.index(max(__util_table_given_context))
+		# normalize the sums
+		__temp_sum = sum(__util_table_given_context)
+		for j in xrange(len(self.domain)):
+			__util_table_given_context[j] = __util_table_given_context[j]/__temp_sum
+
+		# calculate the without_context scores
+		__temp_without_context = [0 for i in self.domain]
+		for i in xrange(len(self.neighbours)):
+			for j in xrange(len(self.domain)):
+				__temp_without_context[j] += self.without_context_table[i][j]
+		# normalize them
+		__temp_sum = sum(__temp_without_context)
+		for j in xrange(len(self.domain)):
+			__temp_without_context[j] = (__temp_without_context[j]/float(__temp_sum))
+
+		# calculate the weighted sum
+		__weighted_choices = [0 for i in self.domain]
+		for i in xrange(len(self.domain)):
+			# (__util_table_given_context[i] * self.with_context_weight) +
+			__weighted_choices[i] = (__util_table_given_context[i] * self.with_context_weight) + (__temp_without_context[i] * self.without_context_weight)
+
+		__next_index = __weighted_choices.index(max(__weighted_choices))
 		__next_val = self.domain[__next_index]
+
+		# look in __util_table_given_context
+		# __next_index = __util_table_given_context.index(max(__util_table_given_context))
+		# __next_val = self.domain[__next_index]
 		__new_util = 0
 		# calculate unnormalized utility
 		for i in self.neighbours:
@@ -111,9 +145,66 @@ class Node:
 				__util += tempval
 				# print tempval
 		return __util
+	def set_voting_rights(self):
+		# adjusts the voting rights for the values in my domain
+		for i in self.neighbours:
+			for j in i.domain:
+				for k in xrange(len(self.domain)):
+					self.voting_rights[k] += self.util_table[i][j][k]
+		__temp_sum = sum(self.voting_rights)
+		for k in xrange(len(self.domain)):
+			self.voting_rights[k] = self.voting_rights[k]/float(__temp_sum)
+	def create_without_context_table(self):
+		# this along with the __util_table_given_context will decide next value to choose
+		self.without_context_table = [[0 for j in self.domain] for i in self.neighbours]
+	def create_neighbour_message(self):
+		# creates messages which will fill the neighbour's without_context_table
+		for i in self.neighbours:
+			# rows are my domain, columns are neighbour's domain
+			__temparr = [[0 for k in i.domain] for j in self.domain]
+			for j in xrange(len(self.domain)):
+				for k in xrange(len(i.domain)):
+					__temparr[j][k] = self.util_table[i][i.domain[k]][j]
+			# normalize
+			for j in xrange(len(self.domain)):
+				__temp_sum = sum(__temparr[j])
+				for k in xrange(len(i.domain)):
+					__temparr[j][k] = __temparr[j][k]/float(__temp_sum)
+			# multiply with voting rights					
+			for j in xrange(len(self.domain)):
+				for k in xrange(len(i.domain)):
+					__temparr[j][k] = (__temparr[j][k] * self.voting_rights[j])
+			__temp_msg = [0 for k in i.domain]
+			# sum over columns
+			for j in xrange(len(self.domain)):
+				for k in xrange(len(i.domain)):
+					__temp_msg[k] += __temparr[j][k]
+			# add to dict
+			self.neighbour_message[i] = __temp_msg
+	def send_neighbour_message(self):
+		for key, value in self.neighbour_message.items():
+			for j in xrange(len(key.domain)):
+				key.without_context_table[key.neighbours.index(self)][j] = value[j]
 	def DSA(self):
 		# print self.util_table
 		# print self.label, self.val
+		# set the voting rights
+		self.set_voting_rights()
+		# create without_context_table
+		self.create_without_context_table()
+		# create the neighbour_message dict
+		self.create_neighbour_message()
+
+		# wait for neighbours to create without_context_table
+		TI.sleep(1)
+
+		# add the message to neighbour's without_context_table
+		self.send_neighbour_message()
+
+		# for above to happen
+		TI.sleep(1)
+
+		# set the start time
 		__start_time = TI.time()
 		# send initial value to neighbours
 		self.tell_neighbours()
@@ -165,9 +256,9 @@ def main():
 	# list of nodes
 	nodes_list = [A,B,C,D]
 
-	init_val_list = [0,0,0,0]
-	for i in xrange(len(init_val_list)):
-		nodes_list[i].set_init_val(init_val_list[i])
+	# init_val_list = [0,0,0,0]
+	# for i in xrange(len(init_val_list)):
+	# 	nodes_list[i].set_init_val(init_val_list[i])
 
 	# similar to add_neighbours, and for each neighbour,
 	# make a list of tuples, where each tuple has an object and a list of lists

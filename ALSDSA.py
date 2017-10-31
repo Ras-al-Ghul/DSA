@@ -156,9 +156,9 @@ def main():
 	# list of nodes
 	nodes_list = [A,B,C,D]
 
-	init_val_list = [0,0,0,0]
-	for i in xrange(len(init_val_list)):
-		nodes_list[i].set_init_val(init_val_list[i])
+	# init_val_list = [0,0,0,0]
+	# for i in xrange(len(init_val_list)):
+	# 	nodes_list[i].set_init_val(init_val_list[i])
 
 	# similar to add_neighbours, and for each neighbour,
 	# make a list of tuples, where each tuple has an object and a list of lists
