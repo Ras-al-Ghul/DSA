@@ -6,6 +6,7 @@ import queue as QU
 import sys as SY
 
 screen_lock = TH.Semaphore(value=1)
+second_lock = TH.Semaphore(value=1)
 global_val = 0
 global_calc_list = []
 
@@ -66,14 +67,22 @@ class Node:
 			__temp_obj.util_table[self] = __temp_dict
 	def select_new_val(self, old_val):
 		# set this to minimum value, not just 0
-		__util_list = [0 for i in self.domain]
+		__util_table_given_context = [0 for i in self.domain]
 		for i in self.neighbours:
-			# it is a tuple
+			# create a temp list which will help in normalizing to 1
+			__util_list = [0 for k in self.domain]
 			for j in xrange(len(self.domain)):
 				__util_list[j] += self.util_table[i][self.context[self.round_num][i]][j]
+			for j in xrange(len(self.domain)):
+				__util_table_given_context[j] += (__util_list[j]/float(sum(__util_list)))
 		
-		__next_val = self.domain[__util_list.index(max(__util_list))]
-		__new_util = max(__util_list)
+		# look in __util_table_given_context
+		__next_index = __util_table_given_context.index(max(__util_table_given_context))
+		__next_val = self.domain[__next_index]
+		__new_util = 0
+		# calculate unnormalized utility
+		for i in self.neighbours:
+			__new_util += self.util_table[i][self.context[self.round_num][i]][__next_index]
 
 		__old_util = 0
 		for i in self.neighbours:
