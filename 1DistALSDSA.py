@@ -136,7 +136,7 @@ class Node:
 		# self.round_num+=1
 
 		# return the best value
-		return __next_val, __new_util, __old_util
+		return __next_val, __new_util, __old_util, __local_context
 	def tell_neighbours(self):
 		for i in self.neighbours:
 			try:
@@ -253,14 +253,14 @@ class Node:
 					continue
 			if __inner_flag:
 				break
-			__temp_val, __new_util, __old_util = self.select_new_val(self.val)
+			__temp_val, __new_util, __old_util, __local_context = self.select_new_val(self.val)
 			if __new_util > __old_util:
 				if RA.random() < self.probability:
 					screen_lock.acquire()
 
 					__temp_flag = False
 					for i in self.neighbours:
-						if i.val != self.context[self.round_num][i]:
+						if i.val != __local_context[i]:
 							__temp_flag = True
 							break
 					if __temp_flag:
