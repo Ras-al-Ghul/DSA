@@ -36,9 +36,9 @@ class Node:
 		# key is which neighbour, value is a 1D array which has preference values for each value in the domain of the neighbour
 		self.neighbour_message = {}
 		# with_context_weight
-		self.with_context_weight = 0.5
+		self.with_context_weight = 1.0
 		# without_context_weight
-		self.without_context_weight = 0.5
+		self.without_context_weight = 0.0
 		# neighbour voting weights
 		self.neighbour_voting_weights = []
 	def add_neighbours(self, neighbours):
@@ -78,13 +78,14 @@ class Node:
 			# set neighbour's dict
 			__temp_obj.util_table[self] = __temp_dict
 	def select_new_val(self, old_val):
+		__local_context = self.context[self.round_num].copy()
 		# set this to minimum value, not just 0
 		__util_table_given_context = [0 for i in self.domain]
 		for i in self.neighbours:
 			# create a temp list which will help in normalizing to 1
 			__util_list = [0 for k in self.domain]
 			for j in xrange(len(self.domain)):
-				__util_list[j] += self.util_table[i][self.context[self.round_num][i]][j]
+				__util_list[j] += self.util_table[i][__local_context[i]][j]
 			for j in xrange(len(self.domain)):
 				__util_table_given_context[j] += (__util_list[j]/float(sum(__util_list)))
 		
@@ -103,9 +104,9 @@ class Node:
 		# for j in xrange(len(self.domain)):
 		# 	__temp_without_context[j] = (__temp_without_context[j]/float(__temp_sum))
 
-		screen_lock.acquire()
-		print self.label, __temp_without_context
-		screen_lock.release()
+		# screen_lock.acquire()
+		# print self.label, __temp_without_context
+		# screen_lock.release()
 
 		# calculate the weighted sum
 		__weighted_choices = [0 for i in self.domain]
@@ -122,16 +123,18 @@ class Node:
 		__new_util = 0
 		# calculate unnormalized utility
 		for i in self.neighbours:
-			__new_util += self.util_table[i][self.context[self.round_num][i]][__next_index]
+			__new_util += self.util_table[i][__local_context[i]][__next_index]
 
 		__old_util = 0
 		for i in self.neighbours:
-			__old_util += self.util_table[i][self.context[self.round_num][i]][self.domain.index(old_val)]
+			__old_util += self.util_table[i][__local_context[i]][self.domain.index(old_val)]
 
 		# delete key
 		# del self.context[self.round_num]
+		
 		# increment the round number
-		self.round_num+=1
+		# self.round_num+=1
+
 		# return the best value
 		return __next_val, __new_util, __old_util
 	def tell_neighbours(self):
@@ -233,7 +236,7 @@ class Node:
 		# send initial value to neighbours
 		self.tell_neighbours()
 
-		# execute for 10 seconds
+		# execute for 2 seconds
 		while TI.time() - __start_time < 2:
 			__inner_start = TI.time()
 			__inner_flag = False
@@ -254,6 +257,16 @@ class Node:
 			if __new_util > __old_util:
 				if RA.random() < self.probability:
 					screen_lock.acquire()
+
+					__temp_flag = False
+					for i in self.neighbours:
+						if i.val != self.context[self.round_num][i]:
+							__temp_flag = True
+							break
+					if __temp_flag:
+						screen_lock.release()
+						continue
+
 					__old_val = self.val
 					self.val = __temp_val
 					print self.label, " value changed from ", __old_val, " to ", __temp_val
@@ -262,8 +275,9 @@ class Node:
 					if __temp_global > global_val:
 						global_val = __temp_global
 						print "global utility changed ", global_val
-					screen_lock.release()
+					self.round_num += 1
 					self.tell_neighbours()
+					screen_lock.release()
 
 def main():
 	# declare nodes with labels and domains
@@ -279,7 +293,7 @@ def main():
 	# list of nodes
 	nodes_list = [A,B,C,D]
 
-	init_val_list = [0,1,0,0]
+	init_val_list = [1,1,0,0]
 	for i in xrange(len(init_val_list)):
 		nodes_list[i].set_init_val(init_val_list[i])
 

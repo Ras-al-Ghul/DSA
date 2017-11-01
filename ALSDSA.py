@@ -65,24 +65,27 @@ class Node:
 			# set neighbour's dict
 			__temp_obj.util_table[self] = __temp_dict
 	def select_new_val(self, old_val):
+		__local_context = (self.context[self.round_num]).copy()
 		# set this to minimum value, not just 0
 		__util_list = [0 for i in self.domain]
 		for i in self.neighbours:
 			# it is a tuple
 			for j in xrange(len(self.domain)):
-				__util_list[j] += self.util_table[i][self.context[self.round_num][i]][j]
+				__util_list[j] += self.util_table[i][__local_context[i]][j]
 		
 		__next_val = self.domain[__util_list.index(max(__util_list))]
 		__new_util = max(__util_list)
 
 		__old_util = 0
 		for i in self.neighbours:
-			__old_util += self.util_table[i][self.context[self.round_num][i]][self.domain.index(old_val)]
+			__old_util += self.util_table[i][__local_context[i]][self.domain.index(old_val)]
 
 		# delete key
 		# del self.context[self.round_num]
+		
 		# increment the round number
-		self.round_num+=1
+		# self.round_num+=1
+
 		# return the best value
 		return __next_val, __new_util, __old_util
 	def tell_neighbours(self):
@@ -131,6 +134,16 @@ class Node:
 				if RA.random() < self.probability:
 					global screen_lock
 					screen_lock.acquire()
+
+					__temp_flag = False
+					for i in self.neighbours:
+						if i.val != self.context[self.round_num][i]:
+							__temp_flag = True
+							break
+					if __temp_flag:
+						screen_lock.release()
+						continue
+
 					__old_val = self.val
 					self.val = __temp_val
 					print self.label, " value changed from ", __old_val, " to ", __temp_val
@@ -139,8 +152,9 @@ class Node:
 					if __temp_global > global_val:
 						global_val = __temp_global
 						print "global utility changed ", global_val
-					screen_lock.release()
+					self.round_num+=1
 					self.tell_neighbours()
+					screen_lock.release()
 
 def main():
 	# declare nodes with labels and domains
@@ -156,9 +170,9 @@ def main():
 	# list of nodes
 	nodes_list = [A,B,C,D]
 
-	# init_val_list = [0,0,0,0]
-	# for i in xrange(len(init_val_list)):
-	# 	nodes_list[i].set_init_val(init_val_list[i])
+	init_val_list = [1,1,0,0]
+	for i in xrange(len(init_val_list)):
+		nodes_list[i].set_init_val(init_val_list[i])
 
 	# similar to add_neighbours, and for each neighbour,
 	# make a list of tuples, where each tuple has an object and a list of lists
