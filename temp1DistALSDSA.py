@@ -93,19 +93,15 @@ class Node:
 		for j in xrange(len(self.domain)):
 			__util_table_given_context[j] = __util_table_given_context[j]/__temp_sum
 
-		# calculate the without_context scores
+		# calculate the without_context scores - multiply with the neighbour_voting_weights
 		__temp_without_context = [0 for i in self.domain]
 		for i in xrange(len(self.neighbours)):
 			for j in xrange(len(self.domain)):
 				__temp_without_context[j] += (self.without_context_table[i][j] * self.neighbour_voting_weights[i])
-		# normalize them
+		# # normalize them
 		# __temp_sum = sum(__temp_without_context)
 		# for j in xrange(len(self.domain)):
 		# 	__temp_without_context[j] = (__temp_without_context[j]/float(__temp_sum))
-
-		screen_lock.acquire()
-		print self.label, __temp_without_context
-		screen_lock.release()
 
 		# calculate the weighted sum
 		__weighted_choices = [0 for i in self.domain]
@@ -270,16 +266,16 @@ def main():
 	A = Node('A', [0,1], 0.8)
 	B = Node('B', [0,1], 0.8)
 	C = Node('C', [0,1], 0.8)
-	D = Node('D', [0,1], 0.8)
+	# D = Node('D', [0,1], 0.8)
 
 	# there should be 'sum(number of edges in the graph)' items in the square braces
 	A.add_neighbours([B,C])
-	B.add_neighbours([C,D])
+	B.add_neighbours([C])
 
 	# list of nodes
-	nodes_list = [A,B,C,D]
+	nodes_list = [A,B,C]
 
-	init_val_list = [0,1,0,0]
+	init_val_list = [1,1,1]
 	for i in xrange(len(init_val_list)):
 		nodes_list[i].set_init_val(init_val_list[i])
 
@@ -289,11 +285,11 @@ def main():
 	# each list in list of list will be indexed by self's domain values
 	# chronological order from above declare nodes is followed
 	A.set_constraint_table([(B,[[3,4],[2,1]]), (C,[[1,2],[2,1]])])
-	B.set_constraint_table([(C,[[2,1],[3,3]]), (D,[[2,4],[1,2]])])
+	B.set_constraint_table([(C,[[2,1],[3,3]])])
 
 	global global_calc_list
 	# same order as above
-	global_calc_list = [[A,[B,C]],[B,[C,D]],[C,[]],[D,[]]]
+	global_calc_list = [[A,[B,C]],[B,[C]],[C,[]]]
 
 	for i in nodes_list:
 		print i.label, i.val,
