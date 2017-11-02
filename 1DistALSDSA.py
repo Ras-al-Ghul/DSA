@@ -9,6 +9,7 @@ screen_lock = TH.Semaphore(value=1)
 second_lock = TH.Semaphore(value=1)
 global_val = 0
 global_calc_list = []
+global_queue = QU.Queue()
 
 class Node:
 	def __init__(self, label, domain, probability):
@@ -36,9 +37,9 @@ class Node:
 		# key is which neighbour, value is a 1D array which has preference values for each value in the domain of the neighbour
 		self.neighbour_message = {}
 		# with_context_weight
-		self.with_context_weight = 0.5
+		self.with_context_weight = 1.0
 		# without_context_weight
-		self.without_context_weight = 0.5
+		self.without_context_weight = 0.0
 		# neighbour voting weights
 		self.neighbour_voting_weights = []
 	def add_neighbours(self, neighbours):
@@ -78,13 +79,17 @@ class Node:
 			# set neighbour's dict
 			__temp_obj.util_table[self] = __temp_dict
 	def select_new_val(self, old_val):
+		# with this we ensure that the context is the same throughout this function
+		__old_round_num = self.round_num
+		self.round_num += 1
+
 		# set this to minimum value, not just 0
 		__util_table_given_context = [0 for i in self.domain]
 		for i in self.neighbours:
 			# create a temp list which will help in normalizing to 1
 			__util_list = [0 for k in self.domain]
 			for j in xrange(len(self.domain)):
-				__util_list[j] += self.util_table[i][self.context[self.round_num][i]][j]
+				__util_list[j] += self.util_table[i][self.context[__old_round_num][i]][j]
 			for j in xrange(len(self.domain)):
 				__util_table_given_context[j] += (__util_list[j]/float(sum(__util_list)))
 		
@@ -103,9 +108,9 @@ class Node:
 		# for j in xrange(len(self.domain)):
 		# 	__temp_without_context[j] = (__temp_without_context[j]/float(__temp_sum))
 
-		screen_lock.acquire()
-		print self.label, __temp_without_context
-		screen_lock.release()
+		# screen_lock.acquire()
+		# print self.label, __temp_without_context
+		# screen_lock.release()
 
 		# calculate the weighted sum
 		__weighted_choices = [0 for i in self.domain]
@@ -122,16 +127,16 @@ class Node:
 		__new_util = 0
 		# calculate unnormalized utility
 		for i in self.neighbours:
-			__new_util += self.util_table[i][self.context[self.round_num][i]][__next_index]
+			__new_util += self.util_table[i][self.context[__old_round_num][i]][__next_index]
 
 		__old_util = 0
 		for i in self.neighbours:
-			__old_util += self.util_table[i][self.context[self.round_num][i]][self.domain.index(old_val)]
+			__old_util += self.util_table[i][self.context[__old_round_num][i]][self.domain.index(old_val)]
 
 		# delete key
-		# del self.context[self.round_num]
+		# del self.context[__old_round_num]
 		# increment the round number
-		self.round_num+=1
+		# self.round_num+=1
 		# return the best value
 		return __next_val, __new_util, __old_util
 	def tell_neighbours(self):
@@ -253,16 +258,19 @@ class Node:
 			__temp_val, __new_util, __old_util = self.select_new_val(self.val)
 			if __new_util > __old_util:
 				if RA.random() < self.probability:
-					screen_lock.acquire()
+					
 					__old_val = self.val
 					self.val = __temp_val
-					print self.label, " value changed from ", __old_val, " to ", __temp_val
-					__temp_global = self.calc_utility()
-					global global_val
-					if __temp_global > global_val:
-						global_val = __temp_global
-						print "global utility changed ", global_val
-					screen_lock.release()
+					# screen_lock.acquire()
+					global global_queue
+					global_queue.put((self.label, __old_val, __temp_val))
+					# print self.label, " value changed from ", __old_val, " to ", __temp_val
+					# __temp_global = self.calc_utility()
+					# global global_val
+					# if __temp_global > global_val:
+					# 	global_val = __temp_global
+					# 	print "global utility changed ", global_val
+					# screen_lock.release()
 					self.tell_neighbours()
 
 def main():
@@ -279,7 +287,7 @@ def main():
 	# list of nodes
 	nodes_list = [A,B,C,D]
 
-	init_val_list = [0,1,0,0]
+	init_val_list = [0,0,0,1]
 	for i in xrange(len(init_val_list)):
 		nodes_list[i].set_init_val(init_val_list[i])
 
@@ -328,6 +336,16 @@ def main():
 
 	for i in nodes_list:
 		print i.label, i.val,
+
+	print "\n"
+	global global_queue
+	while True:
+		if global_queue.empty():
+			break
+		temp = global_queue.get()
+		print temp[0], " changed from ", temp[1], " to ", temp[2]
+
+	print "\nglobal utility ",A.calc_utility()
 
 if __name__ == '__main__':
 	main()
